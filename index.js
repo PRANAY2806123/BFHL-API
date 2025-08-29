@@ -7,7 +7,7 @@ app.use(helmet());
 app.use(cors());
 app.use(express.json({ limit: "512kb" }));
 
-// ----- Identity (change these to your values before deployment) -----
+// ----- Identity (update with your details) -----
 const FULL_NAME = "john_doe";      // lowercase full name
 const DOB_DDMMYYYY = "17091999";   // ddmmyyyy format
 const EMAIL = "john@xyz.com";
@@ -70,7 +70,14 @@ function classify(tokens) {
   };
 }
 
-// ----- API -----
+// ----- Routes -----
+
+// Health check route (for browser access)
+app.get("/", (_req, res) => {
+  res.json({ status: "ok", message: "BFHL backend is running" });
+});
+
+// Main POST API
 app.post("/bfhl", (req, res) => {
   try {
     if (!req.body || !Array.isArray(req.body.data)) {
@@ -105,15 +112,10 @@ app.post("/bfhl", (req, res) => {
   }
 });
 
-// Health check (optional)
-app.get("/", (_req, res) => {
-  res.json({ status: "ok", message: "BFHL backend is running" });
-});
-
-// Start server locally
+// ----- Run locally -----
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () =>
   console.log(`🚀 BFHL API running at http://localhost:${PORT}`)
 );
 
-module.exports = app; // for Vercel
+module.exports = app; // required for Vercel
