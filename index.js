@@ -1,121 +1,59 @@
-const express = require("express");
-const cors = require("cors");
-const helmet = require("helmet");
-
+const express = require('express');
 const app = express();
-app.use(helmet());
-app.use(cors());
-app.use(express.json({ limit: "512kb" }));
+require('dotenv').config();
 
-// ----- Identity (update with your details) -----
-const FULL_NAME = "john_doe";      // lowercase full name
-const DOB_DDMMYYYY = "17091999";   // ddmmyyyy format
-const EMAIL = "john@xyz.com";
-const ROLL_NUMBER = "ABCD123";
+app.use(express.json());
 
-// ----- Helpers -----
-const isIntegerString = (s) => /^-?\d+$/.test(s);
-const isAlphabetic = (s) => /^[A-Za-z]+$/.test(s);
-const isSpecialOnly = (s) => s.length > 0 && /^[^A-Za-z0-9]+$/.test(s);
+const PORT = 3000;
 
-function buildConcatString(tokens) {
-  const letters = [];
-  for (const t of tokens) {
-    const matches = String(t).match(/[A-Za-z]/g);
-    if (matches) letters.push(...matches);
-  }
-  letters.reverse();
-  return letters
-    .map((ch, i) => (i % 2 === 0 ? ch.toUpperCase() : ch.toLowerCase()))
-    .join("");
-}
-
-function classify(tokens) {
-  const even_numbers = [];
-  const odd_numbers = [];
-  const alphabets = [];
-  const special_characters = [];
-  let sum = 0n;
-
-  for (const raw of tokens) {
-    const t = String(raw);
-
-    if (isIntegerString(t)) {
-      const n = BigInt(t);
-      sum += n;
-      if (n % 2n === 0n) even_numbers.push(t);
-      else odd_numbers.push(t);
-      continue;
-    }
-
-    if (isAlphabetic(t)) {
-      alphabets.push(t.toUpperCase());
-      continue;
-    }
-
-    if (isSpecialOnly(t)) {
-      special_characters.push(t);
-      continue;
-    }
-    // mixed tokens ignored in arrays, but letters still counted in concat_string
-  }
-
-  return {
-    even_numbers,
-    odd_numbers,
-    alphabets,
-    special_characters,
-    sum: sum.toString(),
-    concat_string: buildConcatString(tokens),
-  };
-}
-
-// ----- Routes -----
-
-// Health check route (for browser access)
-app.get("/", (_req, res) => {
-  res.json({ status: "ok", message: "BFHL backend is running" });
-});
-
-// Main POST API
-app.post("/bfhl", (req, res) => {
+app.post('/bfhl', (req, res) => {
   try {
-    if (!req.body || !Array.isArray(req.body.data)) {
-      return res.status(400).json({
-        is_success: false,
-        error: 'Invalid payload: expected { "data": [...] }',
-      });
+    const inputArray = req.body.data;
+    if (!Array.isArray(inputArray)) {
+      return res.status(400).json({ is_success: false, error: "Invalid input" });
     }
 
-    const result = classify(req.body.data);
+    const numbers = [];
+    const alphabets = [];
+    const specialChars = [];
 
-    const payload = {
+    inputArray.forEach(el => {
+      if (/^-?\d+$/.test(el)) {
+        numbers.push(el);
+      } else if (/^[a-zA-Z]+$/.test(el)) {
+        alphabets.push(el.toUpperCase());
+      } else {
+        specialChars.push(el);
+      }
+    });
+
+    const evenNumbers = numbers.filter(n => parseInt(n) % 2 === 0);
+    const oddNumbers = numbers.filter(n => parseInt(n) % 2 !== 0);
+    const sum = numbers.reduce((acc, cur) => acc + parseInt(cur), 0).toString();
+
+    const concatString = alphabets.join('').split('').reverse().map((ch, i) =>
+      i % 2 === 0 ? ch.toUpperCase() : ch.toLowerCase()
+    ).join('');
+
+    const response = {
       is_success: true,
-      user_id: `${FULL_NAME}_${DOB_DDMMYYYY}`,
-      email: EMAIL,
-      roll_number: ROLL_NUMBER,
-      odd_numbers: result.odd_numbers,
-      even_numbers: result.even_numbers,
-      alphabets: result.alphabets,
-      special_characters: result.special_characters,
-      sum: result.sum,
-      concat_string: result.concat_string,
+      user_id: "harsh_agarwal_15052005",
+      email: "harshag9354@gmail.com",
+      roll_number: "22BCI0118",
+      even_numbers: evenNumbers,
+      odd_numbers: oddNumbers,
+      alphabets: alphabets,
+      special_characters: specialChars,
+      sum: sum,
+      concat_string: concatString
     };
 
-    return res.status(200).json(payload);
+    return res.status(200).json(response);
   } catch (err) {
-    return res.status(500).json({
-      is_success: false,
-      error: "Internal Server Error",
-      detail: String(err),
-    });
+    return res.status(500).json({ is_success: false, error: err.message });
   }
 });
 
-// ----- Run locally -----
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () =>
-  console.log(`🚀 BFHL API running at http://localhost:${PORT}`)
-);
-
-module.exports = app; // required for Vercel
+app.listen(PORT, () => {
+  console.log("Server is running on port ${PORT}");
+});
